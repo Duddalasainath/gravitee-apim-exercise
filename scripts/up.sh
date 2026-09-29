@@ -43,6 +43,17 @@ helm upgrade --install gko gko \
   --values "$ROOT_DIR/helm/gko-values.yaml" \
   --wait --timeout 5m
 
+# Upstream bug (checked on GKO 4.10 to 4.12.20): the linux/arm64 operator image
+# contains an x86-64 binary. On arm64 hosts (Apple Silicon) it only runs reliably
+# under Rosetta; under qemu-user it segfaults at random (qemu does not emulate
+# x86 memory ordering). Warn instead of failing so Linux/amd64 is unaffected.
+NODE_ARCH="$(kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.architecture}')"
+if [ "$NODE_ARCH" = "arm64" ] && \
+   ! docker exec "${CLUSTER_NAME}-control-plane" grep -qx enabled /proc/sys/fs/binfmt_misc/rosetta 2>/dev/null; then
+  warn "arm64 host without Rosetta: the GKO operator (x86-64 binary) will crash under qemu."
+  warn "Enable Rosetta for amd64 emulation (Colima: --vz-rosetta; Docker Desktop: Settings > General). See README."
+fi
+
 # The operator installs its CRDs when it starts; wait until the API server serves them.
 log "Waiting for the ApiV4Definition CRD"
 retry 30 2 kubectl get crd apiv4definitions.gravitee.io >/dev/null 2>&1 \
