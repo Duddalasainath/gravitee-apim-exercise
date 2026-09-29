@@ -22,12 +22,11 @@ make down    # delete everything
 | Docker (Docker Desktop, Colima, OrbStack or Docker Engine) | Colima 0.10.3 / Docker 29 | Give it **4 CPUs / 6 GB RAM**. First run pulls ~1.3 GB of images. **Apple Silicon: enable Rosetta** (see below). |
 | [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) | v0.33.0 | **≥ v0.24** is required: older kind does not enforce NetworkPolicies. |
 | kubectl | v1.36 | |
-| Helm | v4.2 | Only flags that exist in Helm 3 and 4 are used (`--wait`, no `--atomic`), but only Helm 4 was run. |
-| make, bash, curl, openssl | any | Preinstalled on macOS and most Linux distributions. |
+| Helm | v4.2 and v3.20 | Both tested. Only flags common to Helm 3 and 4 are used (`--wait`, no `--atomic`). |
+| make, bash, curl, openssl | any | Preinstalled on macOS. Minimal Linux servers may lack `make`: `sudo apt-get install -y make` (Debian/Ubuntu). |
 
-Written for macOS and Linux on amd64 and arm64. **Tested end-to-end on macOS (Apple
-Silicon, arm64) with Colima.** Not yet run on Linux: the scripts use only POSIX tools and
-bash 3.2 features, but that is the first thing to check.
+Tested end-to-end on **macOS (Apple Silicon, arm64)** and **Linux (Ubuntu 22.04, x86_64)**,
+both from a clean clone. See "What was tested" below.
 
 > **Apple Silicon (arm64) note: Rosetta required.** Gravitee's `linux/arm64` operator
 > image actually contains an **x86-64 binary** (checked on GKO 4.10 through 4.12.20), so it
@@ -307,7 +306,13 @@ In rough priority order:
 
 ## What was tested
 
-Run on macOS 26 (Apple Silicon), Colima 0.10.3 (vz + Rosetta, 4 CPU / 6 GB), kind v0.33.0, Helm v4.2:
+**Linux:** Ubuntu 22.04.3 x86_64, Docker 29.3.1, kind v0.33.0, Helm v3.20, kubectl v1.35, from a
+fresh `git clone`. `make up` passed in 146 s, a second `make up` converged, and `GET /ping`
+returned `200` with body `pong`. The operator is stable on native x86 (one restart at startup,
+see "Issues found" #5), and `make down` left no containers behind.
+
+**macOS:** macOS 26 (Apple Silicon), Colima 0.10.3 (vz + Rosetta, 4 CPU / 6 GB), kind v0.33.0,
+Helm v4.2. The full set of checks:
 
 | Check | Result |
 |---|---|
