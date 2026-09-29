@@ -1,0 +1,42 @@
+# The /ping API, defined as code. GKO reconciles this into a ConfigMap in the
+# same namespace; the gateway (Kubernetes sync) loads it and starts serving.
+# No contextRef = DB-less: nothing is pushed to a Management API.
+apiVersion: gravitee.io/v1alpha1
+kind: ApiV4Definition
+metadata:
+  name: ping
+  namespace: gravitee
+spec:
+  name: ping
+  description: "GET /ping proxied to the pong backend"
+  version: "1.0"
+  type: PROXY
+  state: STARTED
+  listeners:
+    - type: HTTP
+      paths:
+        - path: /ping
+      entrypoints:
+        - type: http-proxy
+          qos: AUTO
+  endpointGroups:
+    - name: pong-backend
+      type: http-proxy
+      endpoints:
+        - name: pong
+          type: http-proxy
+          inheritConfiguration: false
+          configuration:
+            # Context path /ping is stripped and the remainder appended, so
+            # GET /ping on the gateway becomes GET /ping on the backend.
+            target: http://pong.pong.svc.cluster.local:8080/ping
+          secondary: false
+  flowExecution:
+    mode: DEFAULT
+    matchRequired: false
+  plans:
+    KeyLess:
+      name: "Open"
+      description: "No authentication; see README for what production would need"
+      security:
+        type: KEY_LESS

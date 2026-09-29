@@ -1,0 +1,36 @@
+# Default-deny ingress in the gateway namespace, then open only what is needed.
+# Enforced by kindnet (kind >= v0.24 ships a NetworkPolicy implementation).
+# Kubelet probes come from the node and are always allowed by NetworkPolicy semantics.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: gravitee
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-public-traffic
+  namespace: gravitee
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: apim
+      app.kubernetes.io/component: gateway
+  policyTypes: ["Ingress"]
+  ingress:
+    # API traffic: the gateway is the public edge, so any source.
+    - ports:
+        - protocol: TCP
+          port: 8082
+    # Technical API (health + Prometheus metrics): monitoring namespace only.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 18082
