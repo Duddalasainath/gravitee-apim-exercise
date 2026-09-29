@@ -1,0 +1,140 @@
+# Gravitee APIM, chart graviteeio/apim 4.12.20: gateway only, DB-less mode.
+#
+# DB-less means no MongoDB, no Management API, no consoles. The gateway reads
+# API definitions from Kubernetes ConfigMaps written by the operator (GKO),
+# so the whole API config lives in Git as Kubernetes resources.
+
+apim:
+  dbLess: true               # disables Management API, Console and Portal templates
+  managedServiceAccount: true # chart creates SA + namespaced Role (configmaps/secrets: get/list/watch)
+
+api:
+  enabled: false
+ui:
+  enabled: false
+portal:
+  enabled: false
+es:
+  enabled: false
+elasticsearch:
+  enabled: false
+mongodb:
+  enabled: false
+ratelimit:
+  type: none # no rate-limit store without a database; see README "What's missing"
+
+gateway:
+  dbLess: true
+  image:
+    repository: graviteeio/apim-gateway
+    tag: "4.12.20" # pinned; multi-arch (amd64 + arm64)
+    pullPolicy: IfNotPresent
+
+  # Fixed at 2 for HA. The HPA is off because kind ships without metrics-server;
+  # in production enable it with minReplicas >= 2.
+  replicaCount: 2
+  autoscaling:
+    enabled: false
+
+  pdb:
+    enabled: true
+    minAvailable: 1
+    maxUnavailable: ""
+
+  deployment:
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 0 # never drop below the desired replicas during a rollout
+        maxSurge: 1
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1001
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1001
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    # Spread replicas across nodes when there are several. "preferred" so the
+    # single-node kind cluster can still schedule both.
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: apim
+                  app.kubernetes.io/component: gateway
+
+  # Standard scrape hints; with prometheus-operator use a PodMonitor instead.
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "18082"
+    prometheus.io/path: "/_node/metrics/prometheus"
+
+  # Give in-flight requests time to finish before the JVM stops.
+  terminationGracePeriod: 30
+  gracefulShutdown:
+    delay: 10
+    unit: SECONDS
+
+  # Memory limit == request so the pod is never OOM-killed for memory it was
+  # promised. No CPU limit: CFS throttling hurts JVM latency, and the request
+  # already guarantees a share.
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      cpu: null
+      memory: 768Mi
+  env:
+    # Size the heap from the container limit instead of the JVM default (25%).
+    - name: JAVA_OPTS
+      value: "-XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=60.0"
+
+  logging:
+    debug: false
+    graviteeLevel: INFO # chart default is DEBUG
+    jettyLevel: WARN
+
+  # Plain Service reachable from the host through kind's port mapping.
+  # In production this would be ClusterIP behind an Ingress/LoadBalancer with TLS.
+  service:
+    type: NodePort
+    nodePort: 30082
+    externalPort: 8082
+    internalPort: 8082
+  ingress:
+    enabled: false
+
+  reporters:
+    elasticsearch:
+      enabled: false # no analytics; see README
+
+  services:
+    # Technical API on :18082 serves health probes and Prometheus metrics.
+    # The password is generated at install time (Makefile) and never stored in Git.
+    core:
+      http:
+        enabled: true
+        port: 18082
+        host: 0.0.0.0 # must listen on the pod IP for kubelet probes and Prometheus
+        authentication:
+          type: basic
+          # password: injected by `make up` via --set
+      service:
+        enabled: false # not on the Service: a NodePort Service would publish it on every node.
+                       # Prometheus scrapes pods directly (see podAnnotations).
+    metrics:
+      enabled: true
+      prometheus:
+        enabled: true
+    sync:
+      kubernetes:
+        enabled: true # watch ConfigMaps in the release namespace for API definitions
