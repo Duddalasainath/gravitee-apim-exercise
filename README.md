@@ -46,7 +46,7 @@ Host port **8082** (on 127.0.0.1) must be free.
 ## Run it
 
 ```bash
-git clone <this repo> && cd gravitee-apim-exercise
+git clone https://github.com/Duddalasainath/gravitee-apim-exercise.git && cd gravitee-apim-exercise
 make up
 ```
 
