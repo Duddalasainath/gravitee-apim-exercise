@@ -12,6 +12,12 @@ spec:
   version: "1.0"
   type: PROXY
   state: STARTED
+  # Required for DB-less: the operator only writes the gateway ConfigMap when
+  # syncFrom is KUBERNETES (its default is MANAGEMENT, which silently does nothing
+  # without a ManagementContext).
+  definitionContext:
+    origin: KUBERNETES
+    syncFrom: KUBERNETES
   listeners:
     - type: HTTP
       paths:
