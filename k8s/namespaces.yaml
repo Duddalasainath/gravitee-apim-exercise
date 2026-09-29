@@ -1,0 +1,30 @@
+# One namespace per concern: operator, gateway (+ its API definitions), backend.
+# Pod Security Admission: "restricted" is enforced where we own every pod spec
+# (backend). The Gravitee charts do not set every field "restricted" needs, so
+# those namespaces enforce "baseline" and only warn/audit on "restricted".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gko-system
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gravitee
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pong
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
