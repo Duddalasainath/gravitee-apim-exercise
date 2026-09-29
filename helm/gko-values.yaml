@@ -27,10 +27,18 @@ manager:
   metrics:
     enabled: true
   webhook:
-    # Validates ApiV4Definitions on admission, e.g. rejects duplicate context paths.
+    # Validates ApiV4Definitions on admission, e.g. rejects duplicate context paths
+    # within the watched namespace.
     enabled: true
     admission:
-      checkApiContextPathConflictInCluster: true
+      # true needs cluster-wide list on apidefinitions, which a namespace-scoped
+      # operator does not have: the webhook then rejects every API.
+      checkApiContextPathConflictInCluster: false
+  templating:
+    # Disabled: we don't use [[ ]] placeholders, and in 4.12.20 the template engine
+    # crashes the operator ("fatal error: concurrent map writes") when the mutating
+    # and validating webhooks run concurrently.
+    enabled: false
 
 # Not used: we route through APIs, not Ingress or Gateway API resources.
 ingress:
