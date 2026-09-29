@@ -1,0 +1,42 @@
+# Gravitee Kubernetes Operator (GKO), chart graviteeio/gko 4.12.20.
+# Turns ApiV4Definition custom resources into API definitions the gateway
+# loads. With no ManagementContext (DB-less mode) it writes them to ConfigMaps
+# next to the resource, and the gateway watches those ConfigMaps.
+manager:
+  image:
+    tag: "4.12.20" # pinned, same as the chart appVersion
+    pullPolicy: IfNotPresent
+  scope:
+    # Only reconcile resources in the gateway namespace. The operator still
+    # needs ClusterRoles for its CRDs and admission webhooks.
+    cluster: true
+    namespaces:
+      - gravitee
+  # The manager installs/updates its CRDs on start (Helm never upgrades CRDs).
+  applyCRDs: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  logs:
+    json: true
+    level: info
+  metrics:
+    enabled: true
+  webhook:
+    # Validates ApiV4Definitions on admission, e.g. rejects duplicate context paths.
+    enabled: true
+    admission:
+      checkApiContextPathConflictInCluster: true
+
+# Not used: we route through APIs, not Ingress or Gateway API resources.
+ingress:
+  controller:
+    enabled: false
+gatewayAPI:
+  applyCRDs: false
+  controller:
+    enabled: false
